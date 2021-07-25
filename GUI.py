@@ -1,6 +1,8 @@
 from tkinter import *
 from tkcalendar import Calendar
-import tkinter.font
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import time
 
 
 class ApplicationWindow:
@@ -14,18 +16,20 @@ class ApplicationWindow:
         master.title("CryptoGraph")
         master.geometry("1200x750+0+0")
         master["background"] = "#484a4d"
-        self.applicationLabel = Label(self.master, text="Cryptograph: A Way of Interfacing with Cryptocurrency "
+        self.applicationLabel = Label(self.master, text="CryptoGraph: A Way of Interfacing with Cryptocurrency "
                                                         "Data", font="Consolas 20 bold", fg="white", bg="#484a4d",
                                       pady=10)
         self.applicationLabel.pack(side=TOP)
 
         # Initialize the GUI frames
-        self.dateFrame = LabelFrame(self.master, text="Time Span of Interest:", font="Arial 12 bold", fg="white",
+        self.dateFrame = LabelFrame(self.master, text="Time Span of Interest", font="Arial 12 bold", fg="white",
                                     bg="#484a4d", pady=5)
-        self.structFrame = LabelFrame(self.master, text="Data Structure:", font="Arial 12 bold", fg="white",
+        self.structFrame = LabelFrame(self.master, text="Data Structure", font="Arial 12 bold", fg="white",
                                       bg="#484a4d", pady=5)
-        self.currFrame = LabelFrame(self.master, text="Currencies of Interest:", font="Arial 12 bold", fg="white",
+        self.currFrame = LabelFrame(self.master, text="Currencies of Interest", font="Arial 12 bold", fg="white",
                                     bg="#484a4d", pady=5)
+        self.graphFrame = LabelFrame(self.master, text="Currency Chart", font="Arial 12 bold", fg="white", bg="#484a4d",
+                                     pady=5)
 
         # Initialize frame members
         self.create_date_frame()
@@ -99,6 +103,87 @@ class ApplicationWindow:
 
     def build_graph(self):
         self.currFrame.destroy()
+
+        # Construct the graph:
+        start_time = time.time()
+        # (these settings might need changing)
+        figure = Figure(figsize=(10, 5), dpi=100)
+        plot = figure.add_subplot(111)
+        # Load in data points:
+
+        # Place data points on the graph:
+
+        # Draw the completed graph to the screen:
+        canvas = FigureCanvasTkAgg(figure, master=self.graphFrame)
+        canvas.draw()
+        canvas.get_tk_widget().pack()
+        toolbar = NavigationToolbar2Tk(canvas, self.graphFrame)
+        toolbar.update()
+        canvas.get_tk_widget().pack()
+        end_time = time.time()
+        graph_time = round(end_time - start_time, 4)
+        graph_time_label = Label(self.graphFrame, text="Graph constructed in %s seconds" % graph_time,
+                                 font="Arial 10 italic", fg="white", bg="#484a4d", pady=5, padx=5)
+        graph_time_label.pack()
+
+        # Access lowest, average, and highest price values for each currency
+        counter = 1
+        for i in self.currencies:
+            stat_frame = Frame(self.graphFrame, bg="#484a4d")
+            # Find lowest price:
+            start_time = time.time()
+            # (call a function to return the lowest price of this currency)
+            lowest_price = 0
+            end_time = time.time()
+            lowest_time = round(end_time - start_time, 2)
+            lowest_label = Label(stat_frame, text="Lowest price (%s): %s (%s seconds)" % (i, lowest_price, lowest_time),
+                                 font="Arial 10 italic", fg="white", bg="#484a4d")
+            lowest_label.pack()
+
+            # Find the average price:
+            start_time = time.time()
+            # (call a function to return the average price of this currency)
+            average_price = 0
+            end_time = time.time()
+            average_time = round(end_time - start_time, 2)
+            average_label = Label(stat_frame, text="Average price (%s): %s (%s seconds)" % (i, average_price,
+                                                                                            average_time),
+                                  font="Arial 10 italic", fg="white", bg="#484a4d")
+            average_label.pack()
+
+            # Find the highest price:
+            start_time = time.time()
+            # (call a function to return the highest price of this currency)
+            highest_price = 0
+            end_time = time.time()
+            highest_time = round(end_time - start_time, 2)
+            highest_label = Label(stat_frame, text="Highest price (%s): %s (%s seconds)" % (i, highest_price,
+                                                                                            highest_time),
+                                  font="Arial 10 italic", fg="white", bg="#484a4d")
+            highest_label.pack(pady=(0, 10))
+
+            if counter == 1:
+                stat_frame.pack(side=LEFT)
+                counter += 1
+            elif counter == 2:
+                stat_frame.config(padx=190)  # Roundabout way of aligning each stat_frame
+                stat_frame.pack(side=LEFT)
+                counter += 1
+            else:
+                stat_frame.pack(side=RIGHT)
+                counter += 1
+
+        # Build the other parts of the graphFrame:
+        reset_button = Button(toolbar, text="RESET", font="Arial 15 bold", bg="red", fg="white", command=lambda:
+                              self.reset())
+        reset_button.pack(side=LEFT, padx=20)
+
+        self.graphFrame.pack()
+
+    def reset(self):
+        self.graphFrame.destroy()
+        self.applicationLabel.destroy()
+        self.__init__(self.master)
 
 
 root = Tk()
