@@ -1,20 +1,68 @@
 from tkinter import *
+
+import numpy as np
 from tkcalendar import Calendar
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import time
+from datetime import datetime, timedelta
+import webbrowser
+import json
+import urllib.request
 
 
 class ApplicationWindow:
-    fromDate = ""
-    toDate = ""
+    fromDate = []
+    toDate = []
     dataStruct = ""
     currencies = []
+
+    warning = False     # Used to track the existence of warning labels in the case of bad inputs
+
+    @staticmethod
+    def data_retrieval(from_date, to_date, currencies, data_struct):
+        data = []
+        # Construct the correct URL to access API data:
+        url = "https://api.nomics.com/v1/currencies/sparkline?key=97256ed7630b914faff021a4a07df5fe66eb6c45&ids="
+        for count, i in enumerate(currencies, start=1):
+            if count == len(currencies):
+                url += i
+            else:
+                url += i + ","
+        url += "&start="
+        for count, i in enumerate(from_date, start=1):
+            if count == len(from_date):
+                url += i
+            else:
+                url += i + "-"
+        url += "T00%3A00%3A00Z&end="
+        for count, i in enumerate(to_date, start=1):
+            if count == len(to_date):
+                url += i
+            else:
+                url += i + "-"
+        url += "T00%3A00%3A00Z"
+
+        json_data = urllib.request.urlopen(url)
+        string_data = json_data.read().decode()
+        dict_data = json.loads(string_data)
+
+        for i in dict_data:
+            x = i["prices"]
+            y = i["timestamps"]
+            y = [j.replace("-", "") for j in y]
+            y = [j.replace("T00:00:00Z", "") for j in y]
+            z = np.column_stack((x, y))
+            # Construct data structures with z
+            # Insert each structure in to the "data" array
+            print(z)
+
+        return data
 
     def __init__(self, master):
         self.master = master
         master.title("CryptoGraph")
-        master.geometry("1200x750+0+0")
+        master.geometry("1250x800+0+0")
         master["background"] = "#484a4d"
         self.applicationLabel = Label(self.master, text="CryptoGraph: A Way of Interfacing with Cryptocurrency "
                                                         "Data", font="Consolas 20 bold", fg="white", bg="#484a4d",
@@ -40,58 +88,89 @@ class ApplicationWindow:
         self.dateFrame.pack()
 
     def create_date_frame(self):
-        instruct = Label(self.dateFrame, text="Select the start and end dates", font="Arial 10 italic", fg="white",
-                         bg="#484a4d", pady=5)
+        instruct = Label(self.dateFrame, text="Select the start and end dates. These must be separated by at least two "
+                                              "days", font="Arial 10 italic", fg="white", bg="#484a4d", pady=5)
         instruct.pack()
-        from_calendar = Calendar(self.dateFrame)
+        from_calendar = Calendar(self.dateFrame, date_pattern="yyyy/MM/dd")
         from_calendar.pack()
         to_label = Label(self.dateFrame, text="To", font="Arial 12 bold", fg="white",
                          bg="#484a4d", pady=5)
         to_label.pack()
-        to_calendar = Calendar(self.dateFrame)
+        to_calendar = Calendar(self.dateFrame, date_pattern="yyyy/MM/dd")
         to_calendar.pack()
         select_button = Button(self.dateFrame, text="OK", font="Arial 10 bold",
                                command=lambda: self.date_entry(from_calendar.get_date(), to_calendar.get_date()))
-        select_button.pack()
+        select_button.pack(pady=(10, 0))
 
     def create_struct_frame(self):
         instruct = Label(self.structFrame, text="Select a data structure", font="Arial 10 italic", fg="white",
                          bg="#484a4d", pady=5)
         instruct.pack()
         map_button = Button(self.structFrame, text="Map", font="Arial 10 bold", command=lambda: self.struct_entry
-                            ("Map"), height=10, width=20)
+        ("Map"), height=10, width=20)
         map_button.pack(side=LEFT)
         tree_button = Button(self.structFrame, text="Tree", font="Arial 10 bold",
                              command=lambda: self.struct_entry("Tree"), height=10, width=20)
         tree_button.pack(side=RIGHT)
 
     def create_curr_frame(self):
-        instruct = Label(self.currFrame, text="Enter the abbreviated names of up to 3 cryptocurrencies (ex: for "
+        instruct = Label(self.currFrame, text="Enter the symbols of up to 3 cryptocurrencies (ex: for "
                                               "Bitcoin, enter BTC)", font="Arial 10 italic", fg="white", bg="#484a4d",
                          pady=5, padx=5)
         instruct.pack()
         entry1 = Entry(self.currFrame, text="Currency #1")
-        entry1.pack()
+        entry1.pack(pady=(0, 5))
         entry2 = Entry(self.currFrame, text="Currency #2")
-        entry2.pack()
+        entry2.pack(pady=(0, 5))
         entry3 = Entry(self.currFrame, text="Currency #3")
-        entry3.pack()
+        entry3.pack(pady=(0, 5))
+        tip = Label(self.currFrame, text="For a comprehensive list of cryptos and their symbols: "
+                                         "https://coinmarketcap.com/all/views/all/",
+                    font="Arial 10 italic", fg="white", bg="#484a4d", cursor="hand1")
+        tip.pack(pady=(0, 10), padx=5)
+        tip.bind("<Button-1>", lambda e: webbrowser.open("https://coinmarketcap.com/all/views/all/"))
         select_button = Button(self.currFrame, text="OK", font="Arial 10 bold",
                                command=lambda: self.curr_entry([entry1.get(), entry2.get(), entry3.get()]))
         select_button.pack()
 
     def date_entry(self, from_date, to_date):
-        self.fromDate = from_date
-        self.toDate = to_date
-        self.display_struct_frame()
+        # Check for invalid input:
+        if datetime.strptime(from_date, "%Y/%m/%d") >= datetime.strptime(to_date, "%Y/%m/%d") - timedelta(days=1) or \
+                (datetime.strptime(from_date, "%Y/%m/%d") > datetime.now() or datetime.strptime(to_date, "%Y/%m/%d") >
+                 datetime.now()):
+            # Input was invalid
+            if not self.warning:
+                warning = Label(self.dateFrame, text="Please input a valid time range", font="Arial 11 italic",
+                                fg="red", bg="#484a4d", pady=5)
+                warning.pack()
+                self.warning = True
+        else:
+            from_date = from_date.split('/')
+            to_date = to_date.split('/')
+            self.fromDate = from_date
+            self.toDate = to_date
+            self.display_struct_frame()
+            self.warning = False
 
     def struct_entry(self, struct):
         self.dataStruct = struct
         self.display_curr_frame()
 
     def curr_entry(self, currencies):
-        self.currencies = currencies
-        self.build_graph()
+        # Check for invalid input:
+        invalid = False
+        for i in currencies:
+            if not i.isupper():
+                invalid = True
+                if not self.warning:
+                    warning = Label(self.currFrame, text="Please input valid currency names", font="Arial 11 italic",
+                                    fg="red", bg="#484a4d", pady=5)
+                    warning.pack()
+                    self.warning = True
+        if not invalid:
+            self.warning = False
+            self.currencies = currencies
+            self.build_graph()
 
     def display_struct_frame(self):
         self.dateFrame.destroy()
@@ -109,9 +188,13 @@ class ApplicationWindow:
         # (these settings might need changing)
         figure = Figure(figsize=(10, 5), dpi=100)
         plot = figure.add_subplot(111)
-        # Load in data points:
-
-        # Place data points on the graph:
+        # Load in data points and check for unsuccessful searches:
+        data = self.data_retrieval(self.fromDate, self.toDate, self.currencies, self.dataStruct)
+        if len(data) < len(self.currencies):
+            warning = Label(self.graphFrame, text="One or more of your input currencies could not be found",
+                            font="Arial 11 italic", fg="red", bg="#484a4d")
+            warning.pack(pady=(0, 5))
+        # Draw the data points to the graph:
 
         # Draw the completed graph to the screen:
         canvas = FigureCanvasTkAgg(figure, master=self.graphFrame)
