@@ -22,7 +22,7 @@ class HashMap:
 		
 	def getHash(self, key): #returns the hash for a given key using the below algorithm
 		hash = 0
-		temp = int(str(key)[:3]) % self.mapSize #hasm = (last 3 digits) % size of map
+		temp = int(str(key)[-3:]) % self.mapSize #hasm = (last 3 digits) % size of map
 		return temp
 		
 	def insert(self, key, value): #insert a key with its corresponding value
