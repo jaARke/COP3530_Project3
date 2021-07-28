@@ -1,5 +1,5 @@
 from tkinter import *
-
+import matplotlib.dates
 import numpy as np
 from tkcalendar import Calendar
 from matplotlib.figure import Figure
@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 import webbrowser
 import json
 import urllib.request
+
+from HashMap import *
+from BPlusTree import *
 
 
 class ApplicationWindow:
@@ -21,7 +24,10 @@ class ApplicationWindow:
 
     @staticmethod
     def data_retrieval(from_date, to_date, currencies, data_struct):
+        dates = []
         data = []
+        found_currencies = []
+
         # Construct the correct URL to access API data:
         url = "https://api.nomics.com/v1/currencies/sparkline?key=97256ed7630b914faff021a4a07df5fe66eb6c45&ids="
         for count, i in enumerate(currencies, start=1):
@@ -45,24 +51,30 @@ class ApplicationWindow:
 
         json_data = urllib.request.urlopen(url)
         string_data = json_data.read().decode()
-        dict_data = json.loads(string_data)
+        list_data = json.loads(string_data)
 
-        for i in dict_data:
+        for i in list_data:
+            found_currencies.append(i["currency"])
             x = i["prices"]
             y = i["timestamps"]
-            y = [j.replace("-", "") for j in y]
             y = [j.replace("T00:00:00Z", "") for j in y]
+            dates = y
+            y = [j.replace("-", "") for j in y]
             z = np.column_stack((x, y))
-            # Construct data structures with z
-            # Insert each structure in to the "data" array
-            print(z)
+            # Construct data structures with z and add them to the data array
+            if data_struct == "Tree":
+                struct = BPlusTree(prices=z)
+                data.append(struct)
+            else:
+                struct = HashMap(prices=z)
+                data.append(struct)
 
-        return data
+        return data, dates, found_currencies
 
     def __init__(self, master):
         self.master = master
         master.title("CryptoGraph")
-        master.geometry("1250x800+0+0")
+        master.geometry("1400x800+0+0")
         master["background"] = "#484a4d"
         self.applicationLabel = Label(self.master, text="CryptoGraph: A Way of Interfacing with Cryptocurrency "
                                                         "Data", font="Consolas 20 bold", fg="white", bg="#484a4d",
@@ -160,7 +172,7 @@ class ApplicationWindow:
         # Check for invalid input:
         invalid = False
         for i in currencies:
-            if not i.isupper():
+            if not i.isupper() and i != "":
                 invalid = True
                 if not self.warning:
                     warning = Label(self.currFrame, text="Please input valid currency names", font="Arial 11 italic",
@@ -168,6 +180,8 @@ class ApplicationWindow:
                     warning.pack()
                     self.warning = True
         if not invalid:
+            currencies = list(filter(None, currencies))
+            currencies.sort()
             self.warning = False
             self.currencies = currencies
             self.build_graph()
@@ -185,16 +199,34 @@ class ApplicationWindow:
 
         # Construct the graph:
         start_time = time.time()
-        # (these settings might need changing)
         figure = Figure(figsize=(10, 5), dpi=100)
         plot = figure.add_subplot(111)
+
         # Load in data points and check for unsuccessful searches:
-        data = self.data_retrieval(self.fromDate, self.toDate, self.currencies, self.dataStruct)
-        if len(data) < len(self.currencies):
+        data, dates, found_currencies = self.data_retrieval(self.fromDate, self.toDate, self.currencies, self.dataStruct)
+        dates = [datetime.strptime(i, '%Y-%m-%d') for i in dates]
+        if len(found_currencies) < len(self.currencies):
             warning = Label(self.graphFrame, text="One or more of your input currencies could not be found",
                             font="Arial 11 italic", fg="red", bg="#484a4d")
             warning.pack(pady=(0, 5))
+
         # Draw the data points to the graph:
+        for i in range(len(data)):
+            if self.dataStruct == "Tree":
+                values = data[i].get_prices_tree()
+            else:
+                values = data[i].get_prices_map()
+                values.sort(key=lambda e: e[1])     # Values must be sorted before being added to the graph
+            y_values = [x[0] for x in values]
+            x_values = matplotlib.dates.date2num(dates)
+            if len(x_values) != len(y_values):      # Crypto data doesn't exist for the entire time span
+                x_values = x_values[-len(y_values):]
+            plot.plot(x_values, y_values, label=found_currencies[i])
+        plot.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%m-%d-%Y'))
+        figure.autofmt_xdate()
+        plot.set_xlabel("Time", weight='bold')
+        plot.set_ylabel("Value (USD)", weight='bold')
+        plot.legend()
 
         # Draw the completed graph to the screen:
         canvas = FigureCanvasTkAgg(figure, master=self.graphFrame)
@@ -211,37 +243,44 @@ class ApplicationWindow:
 
         # Access lowest, average, and highest price values for each currency
         counter = 1
-        for i in self.currencies:
+        for i in range(len(found_currencies)):
             stat_frame = Frame(self.graphFrame, bg="#484a4d")
             # Find lowest price:
-            start_time = time.time()
-            # (call a function to return the lowest price of this currency)
-            lowest_price = 0
-            end_time = time.time()
-            lowest_time = round(end_time - start_time, 2)
-            lowest_label = Label(stat_frame, text="Lowest price (%s): %s (%s seconds)" % (i, lowest_price, lowest_time),
+            start_time = time.perf_counter_ns()
+            if self.dataStruct == "Tree":
+                lowest_price = round(float(data[i].get_minimum_price()), 3)
+            else:
+                lowest_price = round(float(data[i].findMin()), 3)
+            end_time = time.perf_counter_ns()
+            lowest_time = round(end_time - start_time, 4)
+            lowest_label = Label(stat_frame, text="Lowest price (%s): %s (%s ns)" % (found_currencies[i],
+                                                                                     lowest_price, lowest_time),
                                  font="Arial 10 italic", fg="white", bg="#484a4d")
             lowest_label.pack()
 
             # Find the average price:
-            start_time = time.time()
-            # (call a function to return the average price of this currency)
-            average_price = 0
-            end_time = time.time()
-            average_time = round(end_time - start_time, 2)
-            average_label = Label(stat_frame, text="Average price (%s): %s (%s seconds)" % (i, average_price,
-                                                                                            average_time),
+            start_time = time.perf_counter_ns()
+            if self.dataStruct == "Tree":
+                average_price = round(float(data[i].get_average_price()), 3)
+            else:
+                average_price = round(float(data[i].findAvg()), 3)
+            end_time = time.perf_counter_ns()
+            average_time = round(end_time - start_time, 4)
+            average_label = Label(stat_frame, text="Average price (%s): %s (%s ns)" % (found_currencies[i],
+                                                                                            average_price, average_time),
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             average_label.pack()
 
             # Find the highest price:
-            start_time = time.time()
-            # (call a function to return the highest price of this currency)
-            highest_price = 0
-            end_time = time.time()
-            highest_time = round(end_time - start_time, 2)
-            highest_label = Label(stat_frame, text="Highest price (%s): %s (%s seconds)" % (i, highest_price,
-                                                                                            highest_time),
+            start_time = time.perf_counter_ns()
+            if self.dataStruct == "Tree":
+                highest_price = round(float(data[i].get_maximum_price()), 3)
+            else:
+                highest_price = round(float(data[i].findMax()), 3)
+            end_time = time.perf_counter_ns()
+            highest_time = round(end_time - start_time, 4)
+            highest_label = Label(stat_frame, text="Highest price (%s): %s (%s ns)" % (found_currencies[i],
+                                                                                       highest_price, highest_time),
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             highest_label.pack(pady=(0, 10))
 
