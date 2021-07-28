@@ -108,3 +108,19 @@ class HashMap:
 			
 		del oldMap
 		del oldSize
+		
+	def itrMap(self):
+		arr = [[0]*2 for i in range(self.count)]
+		
+		i = 0
+		j = 0
+		while i != self.mapSize:
+			if self.map[i] != None:
+				for itr in self.map[i]:
+					arr[j][0] = itr[0]
+					arr[j][1] = itr[1]
+					j = j + 1
+					
+			i = i +1
+		
+		return arr
