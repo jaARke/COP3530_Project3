@@ -219,7 +219,7 @@ class ApplicationWindow:
                 values.sort(key=lambda e: e[1])     # Values must be sorted before being added to the graph
             y_values = [x[0] for x in values]
             x_values = matplotlib.dates.date2num(dates)
-            if len(x_values) != len(y_values):      # Crypto data doesn't exist for the entire time span
+            if len(x_values) is not len(y_values):  # Crypto data doesn't exist for the entire time span
                 x_values = x_values[-len(y_values):]
             plot.plot(x_values, y_values, label=found_currencies[i])
         plot.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%m-%d-%Y'))
@@ -267,7 +267,7 @@ class ApplicationWindow:
             end_time = time.perf_counter_ns()
             average_time = round(end_time - start_time, 4)
             average_label = Label(stat_frame, text="Average price (%s): %s (%s ns)" % (found_currencies[i],
-                                                                                            average_price, average_time),
+                                                                                       average_price, average_time),
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             average_label.pack()
 
