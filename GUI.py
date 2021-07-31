@@ -53,15 +53,18 @@ class ApplicationWindow:
         string_data = json_data.read().decode()
         list_data = json.loads(string_data)
 
+        # Isolate data variables:
         for i in list_data:
             found_currencies.append(i["currency"])
             x = i["prices"]
             y = i["timestamps"]
             y = [j.replace("T00:00:00Z", "") for j in y]
-            dates = y
+            curr_dates = y
+            if len(curr_dates) > len(dates):
+                dates = curr_dates
             y = [j.replace("-", "") for j in y]
             z = np.column_stack((x, y))
-            # Construct data structures with z and add them to the data array
+            # Construct data structures with z and add them to the data array:
             if data_struct == "Tree":
                 struct = BPlusTree(prices=z)
                 data.append(struct)
@@ -72,6 +75,7 @@ class ApplicationWindow:
         return data, dates, found_currencies
 
     def __init__(self, master):
+        # Create the window:
         self.master = master
         master.title("CryptoGraph")
         master.geometry("1400x800+0+0")
@@ -101,7 +105,7 @@ class ApplicationWindow:
 
     def create_date_frame(self):
         instruct = Label(self.dateFrame, text="Select the start and end dates. These must be separated by at least two "
-                                              "days", font="Arial 10 italic", fg="white", bg="#484a4d", pady=5)
+                                              "days.", font="Arial 10 italic", fg="white", bg="#484a4d", pady=5, padx=5)
         instruct.pack()
         from_calendar = Calendar(self.dateFrame, date_pattern="yyyy/MM/dd")
         from_calendar.pack()
@@ -219,16 +223,16 @@ class ApplicationWindow:
                 values.sort(key=lambda e: e[1])     # Values must be sorted before being added to the graph
             y_values = [x[0] for x in values]
             x_values = matplotlib.dates.date2num(dates)
-            if len(x_values) is not len(y_values):  # Crypto data doesn't exist for the entire time span
+            if len(dates) != len(y_values): # Data does not exist on this crypto for the entire time span
                 x_values = x_values[-len(y_values):]
             plot.plot(x_values, y_values, label=found_currencies[i])
+
+        # Draw the completed graph to the screen:
         plot.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%m-%d-%Y'))
         figure.autofmt_xdate()
         plot.set_xlabel("Time", weight='bold')
         plot.set_ylabel("Value (USD)", weight='bold')
         plot.legend()
-
-        # Draw the completed graph to the screen:
         canvas = FigureCanvasTkAgg(figure, master=self.graphFrame)
         canvas.draw()
         canvas.get_tk_widget().pack()
@@ -248,39 +252,39 @@ class ApplicationWindow:
             # Find lowest price:
             start_time = time.perf_counter_ns()
             if self.dataStruct == "Tree":
-                lowest_price = round(float(data[i].get_minimum_price()), 3)
+                lowest_price = round(float(data[i].get_minimum_price()), 2)
             else:
-                lowest_price = round(float(data[i].findMin()), 3)
+                lowest_price = round(float(data[i].findMin()), 2)
             end_time = time.perf_counter_ns()
             lowest_time = round(end_time - start_time, 4)
-            lowest_label = Label(stat_frame, text="Lowest price (%s): %s (%s ns)" % (found_currencies[i],
-                                                                                     lowest_price, lowest_time),
+            lowest_label = Label(stat_frame, text="Lowest price (%s): $%s (%s ns)" % (found_currencies[i],
+                                                                                      lowest_price, lowest_time),
                                  font="Arial 10 italic", fg="white", bg="#484a4d")
             lowest_label.pack()
 
             # Find the average price:
             start_time = time.perf_counter_ns()
             if self.dataStruct == "Tree":
-                average_price = round(float(data[i].get_average_price()), 3)
+                average_price = round(float(data[i].get_average_price()), 2)
             else:
-                average_price = round(float(data[i].findAvg()), 3)
+                average_price = round(float(data[i].findAvg()), 2)
             end_time = time.perf_counter_ns()
             average_time = round(end_time - start_time, 4)
-            average_label = Label(stat_frame, text="Average price (%s): %s (%s ns)" % (found_currencies[i],
-                                                                                       average_price, average_time),
+            average_label = Label(stat_frame, text="Average price (%s): $%s (%s ns)" % (found_currencies[i],
+                                                                                        average_price, average_time),
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             average_label.pack()
 
             # Find the highest price:
             start_time = time.perf_counter_ns()
             if self.dataStruct == "Tree":
-                highest_price = round(float(data[i].get_maximum_price()), 3)
+                highest_price = round(float(data[i].get_maximum_price()), 2)
             else:
-                highest_price = round(float(data[i].findMax()), 3)
+                highest_price = round(float(data[i].findMax()), 2)
             end_time = time.perf_counter_ns()
             highest_time = round(end_time - start_time, 4)
-            highest_label = Label(stat_frame, text="Highest price (%s): %s (%s ns)" % (found_currencies[i],
-                                                                                       highest_price, highest_time),
+            highest_label = Label(stat_frame, text="Highest price (%s): $%s (%s ns)" % (found_currencies[i],
+                                                                                        highest_price, highest_time),
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             highest_label.pack(pady=(0, 10))
 
