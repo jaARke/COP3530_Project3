@@ -218,12 +218,13 @@ class ApplicationWindow:
         for i in range(len(data)):
             if self.dataStruct == "Tree":
                 values = data[i].get_prices_tree()
+                values.sort(key=lambda e: e[1])     # Values must be sorted before being added to the graph
             else:
                 values = data[i].get_prices_map()
                 values.sort(key=lambda e: e[1])     # Values must be sorted before being added to the graph
             y_values = [x[0] for x in values]
             x_values = matplotlib.dates.date2num(dates)
-            if len(dates) != len(y_values): # Data does not exist on this crypto for the entire time span
+            if len(dates) != len(y_values):     # Data does not exist on this crypto for the entire time span
                 x_values = x_values[-len(y_values):]
             plot.plot(x_values, y_values, label=found_currencies[i])
 
@@ -288,11 +289,12 @@ class ApplicationWindow:
                                   font="Arial 10 italic", fg="white", bg="#484a4d")
             highest_label.pack(pady=(0, 10))
 
+            # Align the stat frames using the counter variable:
             if counter == 1:
                 stat_frame.pack(side=LEFT)
                 counter += 1
             elif counter == 2:
-                stat_frame.config(padx=190)  # Roundabout way of aligning each stat_frame
+                stat_frame.config(padx=190)
                 stat_frame.pack(side=LEFT)
                 counter += 1
             else:
@@ -306,7 +308,7 @@ class ApplicationWindow:
 
         self.graphFrame.pack()
 
-    def reset(self):
+    def reset(self):    # Reset the window by reinitializing
         self.graphFrame.destroy()
         self.applicationLabel.destroy()
         self.__init__(self.master)
