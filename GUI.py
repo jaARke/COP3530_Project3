@@ -314,6 +314,7 @@ class ApplicationWindow:
         self.__init__(self.master)
 
 
-root = Tk()
-gui = ApplicationWindow(root)
-root.mainloop()
+if __name__ == "__main__":  # Program execution
+    root = Tk()
+    gui = ApplicationWindow(root)
+    root.mainloop()
